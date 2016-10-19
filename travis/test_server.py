@@ -204,7 +204,7 @@ def setup_server(db, odoo_unittest, tested_addons, server_path, script_name,
         server_options = []
     print("\nCreating instance:")
     try:
-        subprocess.check_call(["createdb", db])
+        subprocess.check_call(["createdb","-U","odoo","-p", "5432", "-h", "postgres", db])
     except subprocess.CalledProcessError:
         print("Using previous openerp_template database.")
     else:
@@ -212,6 +212,10 @@ def setup_server(db, odoo_unittest, tested_addons, server_path, script_name,
         cmd_odoo = ["unbuffer"] if unbuffer else []
         cmd_odoo += ["%s/%s" % (server_path, script_name),
                      "-d", db,
+                     "--db_host=postgres",
+                     "--db_user=odoo",
+                     "--db_password=odoo",
+                     "--db_port=5432",
                      "--log-level=info",
                      "--stop-after-init",
                      "--init", ','.join(preinstall_modules),
@@ -324,7 +328,7 @@ def main(argv=None):
     else:
         print("Modules to test: %s" % tested_addons)
     # setup the base module without running the tests
-    dbtemplate = "openerp_template"
+    dbtemplate = "odoo_template"
     preinstall_modules = get_test_dependencies(addons_path,
                                                tested_addons_list)
     preinstall_modules = list(set(preinstall_modules) - set(get_modules(
@@ -335,11 +339,15 @@ def main(argv=None):
                  unbuffer, server_options)
 
     # Running tests
-    database = "openerp_test"
+    database = "odoo_test"
 
     cmd_odoo_test = ["coverage", "run",
                      "%s/%s" % (server_path, script_name),
                      "-d", database,
+                     "--db_host=postgres",
+                     "--db_user=odoo",
+                     "--db_password=odoo",
+                     "--db_port=5432",
                      "--stop-after-init",
                      "--log-level", test_loglevel,
                      ]
@@ -353,6 +361,10 @@ def main(argv=None):
         cmd_odoo_install = [
             "%s/%s" % (server_path, script_name),
             "-d", database,
+            "--db_host=postgres",
+            "--db_user=odoo",
+            "--db_password=odoo",
+            "--db_port=5432",
             "--stop-after-init",
             "--log-level=warn",
         ] + install_options + ["--init", None] + server_options
@@ -370,7 +382,7 @@ def main(argv=None):
         db_odoo_created = False
         try:
             db_odoo_created = subprocess.call(
-                ["createdb", "-T", dbtemplate, database])
+                ["createdb", "-U", "odoo", "-h", "postgres", "-p", "5432", "-T", dbtemplate, database])
             copy_attachments(dbtemplate, database, data_dir)
         except subprocess.CalledProcessError:
             db_odoo_created = True
@@ -417,7 +429,7 @@ def main(argv=None):
                 print(fail_msg, "Found %d lines with errors" % errors)
         if not instance_alive:
             # Don't drop the database if will be used later.
-            subprocess.call(["dropdb", database])
+            subprocess.call(["dropdb", "-h", "postgres", "-U", "odoo", "-p", "5432", database])
 
     print('Module test summary')
     for to_test in to_test_list:
